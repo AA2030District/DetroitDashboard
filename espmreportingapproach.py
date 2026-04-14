@@ -214,6 +214,7 @@ def generatereport(espmidlist):
         "     </properties>\n"
         "</report>"
     )
+    
     response = session.put(
         "https://portfoliomanager.energystar.gov/ws/reports/24393942",
         auth=HTTPBasicAuth(user, pw),
@@ -298,6 +299,7 @@ try:
         usetype NVARCHAR(100),
         datayear NVARCHAR(100) NOT NULL,
         yearbuilt NVARCHAR(100),
+        yearcreatedinespm INT,
         siteeui FLOAT,
         weathernormalizedsiteeui FLOAT,
         energystarscore INT,
@@ -404,6 +406,16 @@ try:
                     pass  # Column already exists
                 else:
                     print(f"Warning: Could not add 'yearbuilt' column: {e}")
+
+            try:
+                cursor.execute("ALTER TABLE DetroitDataBase ADD yearcreatedinespm INT")
+                print("Added 'yearcreatedinespm' column to DetroitDataBase table.")
+                connection.commit()
+            except pyodbc.Error as e:
+                if "duplicate column name" in str(e).lower() or "already exists" in str(e).lower():
+                    pass  # Column already exists
+                else:
+                    print(f"Warning: Could not add 'yearcreatedinespm' column: {e}")
             
             try:
                 cursor.execute("ALTER TABLE DetroitDataBase ADD siteeui FLOAT")
@@ -705,6 +717,7 @@ try:
         usetype NVARCHAR(100),
         datayear NVARCHAR(100) NOT NULL,
         yearbuilt NVARCHAR(100),
+        yearcreatedinespm INT,
         siteeui FLOAT,
         weathernormalizedsiteeui FLOAT,
         energystarscore INT,
@@ -724,12 +737,16 @@ try:
     cursor.execute(create_temp_table_query)
     print("Temp table '#DetroitDataBaseTEMP' created successfully.")
     report_output = generatereport(idlist)
+    
 
     ##create a list of tuples of all building data
     buildingdatalist=[]
-
     for building in report_output['reportData']['informationAndMetrics']['propertyMetrics']:
         espmid=building['@propertyId']
+        #SNEAKING THIS IN REAL QUICK - FINDS AGE OF BUILDING
+        response=session.get(f'https://portfoliomanager.energystar.gov/ws/property/{espmid}',auth=(user,pw))
+        dict_data = xmltodict.parse(response.content)
+        yearcreatedinespm=int(dict_data['property']['audit']['createdDate'][:4])
         buildingname = None
         sqfootage = None
         address = None
@@ -804,10 +821,10 @@ try:
                 energycostelectricitygridpurchase = safe_to_decimal(metric_value)
             elif metric_name == 'energyCostNaturalGas':
                 energycostnaturalgas = safe_to_decimal(metric_value)
-        buildingdatalist.append((espmid,buildingname,sqfootage,address,occupancy,numbuildings,primarypropertytype,yearbuilt,datayear,siteeui,weathernormalizedsiteeui,energystarscore,wui,energycost,energycostintensity,energycostelectricitygridpurchase,energycostnaturalgas,hasenergygaps,haswatergaps,energylessthan12months,waterlessthan12months,pmparentid))
+        buildingdatalist.append((espmid,buildingname,sqfootage,address,occupancy,numbuildings,primarypropertytype,yearbuilt,yearcreatedinespm,datayear,siteeui,weathernormalizedsiteeui,energystarscore,wui,energycost,energycostintensity,energycostelectricitygridpurchase,energycostnaturalgas,hasenergygaps,haswatergaps,energylessthan12months,waterlessthan12months,pmparentid))
     temp_insert_query = """
-                INSERT INTO #DetroitDataBaseTEMP (espmid, buildingname, sqfootage, address, occupancy, numbuildings, usetype, yearbuilt, datayear, siteeui, weathernormalizedsiteeui, energystarscore, wui, energycost, energycostintensity, energycostelectricitygridpurchase, energycostnaturalgas, hasenergygaps, haswatergaps, energylessthan12months, waterlessthan12months, pmparentid) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO #DetroitDataBaseTEMP (espmid, buildingname, sqfootage, address, occupancy, numbuildings, usetype, yearbuilt, yearcreatedinespm, datayear, siteeui, weathernormalizedsiteeui, energystarscore, wui, energycost, energycostintensity, energycostelectricitygridpurchase, energycostnaturalgas, hasenergygaps, haswatergaps, energylessthan12months, waterlessthan12months, pmparentid) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """ 
    
     cursor.fast_executemany = True
@@ -825,6 +842,7 @@ try:
                     ISNULL(target.numbuildings, '') <> ISNULL(source.numbuildings, '') OR
                     ISNULL(target.usetype, '') <> ISNULL(source.usetype, '') OR
                     ISNULL(target.yearbuilt, '') <> ISNULL(source.yearbuilt, '') OR
+                    ISNULL(target.yearcreatedinespm, -1) <> ISNULL(source.yearcreatedinespm, -1) OR
                     ISNULL(target.siteeui, CAST(-1.0 AS FLOAT)) <> ISNULL(source.siteeui, CAST(-1.0 AS FLOAT)) OR
                     ISNULL(target.weathernormalizedsiteeui, CAST(-1.0 AS FLOAT)) <> ISNULL(source.weathernormalizedsiteeui, CAST(-1.0 AS FLOAT)) OR
                     ISNULL(target.energystarscore, -1) <> ISNULL(source.energystarscore, -1) OR
@@ -847,6 +865,7 @@ try:
                         numbuildings = source.numbuildings,
                         usetype = source.usetype,
                         yearbuilt = source.yearbuilt,
+                        yearcreatedinespm = source.yearcreatedinespm,
                         siteeui = source.siteeui,
                         weathernormalizedsiteeui = source.weathernormalizedsiteeui,
                         energystarscore = source.energystarscore,
@@ -861,8 +880,8 @@ try:
                         waterlessthan12months = source.waterlessthan12months,
                         pmparentid = source.pmparentid
                 WHEN NOT MATCHED THEN
-                    INSERT (espmid, buildingname, sqfootage, address, occupancy, numbuildings, usetype, datayear, yearbuilt, siteeui, weathernormalizedsiteeui, energystarscore, wui, energycost, energycostintensity, energycostelectricitygridpurchase, energycostnaturalgas, hasenergygaps, haswatergaps, energylessthan12months, waterlessthan12months, pmparentid)
-                    VALUES (source.espmid, source.buildingname, source.sqfootage, source.address, source.occupancy, source.numbuildings, source.usetype, source.datayear, source.yearbuilt, source.siteeui, source.weathernormalizedsiteeui, source.energystarscore, source.wui, source.energycost, source.energycostintensity, source.energycostelectricitygridpurchase, source.energycostnaturalgas, source.hasenergygaps, source.haswatergaps, source.energylessthan12months, source.waterlessthan12months, source.pmparentid);
+                    INSERT (espmid, buildingname, sqfootage, address, occupancy, numbuildings, usetype, datayear, yearbuilt, yearcreatedinespm, siteeui, weathernormalizedsiteeui, energystarscore, wui, energycost, energycostintensity, energycostelectricitygridpurchase, energycostnaturalgas, hasenergygaps, haswatergaps, energylessthan12months, waterlessthan12months, pmparentid)
+                    VALUES (source.espmid, source.buildingname, source.sqfootage, source.address, source.occupancy, source.numbuildings, source.usetype, source.datayear, source.yearbuilt, source.yearcreatedinespm, source.siteeui, source.weathernormalizedsiteeui, source.energystarscore, source.wui, source.energycost, source.energycostintensity, source.energycostelectricitygridpurchase, source.energycostnaturalgas, source.hasenergygaps, source.haswatergaps, source.energylessthan12months, source.waterlessthan12months, source.pmparentid);
             """
     if buildingdatalist:
         cursor.execute(merge_query)
