@@ -143,15 +143,16 @@ property_rollup AS (
     SELECT
         espmid,
         MAX(TRY_CAST([yearcreatedinespm] AS INT)) AS yearcreatedinespm,
-        MAX(TRY_CAST([numbuildings] AS DECIMAL(18,2))) AS numbuildings
-        MAX(TRY_CAST([sqfootage] AS INT(18,2))) AS sqfootage
+        MAX(TRY_CAST([numbuildings] AS DECIMAL(18,2))) AS numbuildings,
+        MAX(TRY_CAST([sqfootage] AS DECIMAL(18,2))) AS sqfootage
     FROM [dbo].[DetroitDataBase]
     WHERE ISNULL(pmparentid, espmid) = espmid
     GROUP BY espmid
 )
 SELECT
     y.report_year AS [year],
-    COALESCE(SUM(pr.numbuildings), 0) AS buildings
+    COALESCE(SUM(pr.numbuildings), 0) AS buildings,
+    COALESCE(SUM(pr.sqfootage), 0) AS total_sqft
 FROM years y
 LEFT JOIN property_rollup pr
     ON pr.yearcreatedinespm <= y.report_year
