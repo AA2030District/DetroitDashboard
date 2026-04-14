@@ -73,7 +73,6 @@ SELECT
     COALESCE(SUM(TRY_CAST([numbuildings] AS DECIMAL(10,2))), 0) as building_count
 FROM [dbo].[DetroitDataBase]
 WHERE ISNULL(pmparentid,espmid)=espmid 
-AND
 HAVING COALESCE(SUM(TRY_CAST([sqfootage] AS DECIMAL(10,2))), 0) > 0"""
 summary_df = conn.query(summary_query)
 
