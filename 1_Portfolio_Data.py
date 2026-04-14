@@ -193,18 +193,11 @@ st.plotly_chart(apply_white_background(fig), width="content")
 
 
 
-# Manually inserted data, not taken from SQL/Energy Star
-sqft_data = {
-    "years": [2018, 2019, "2020/2021", 2022, 2023, 2024, 2025],
-    "square_footage": [859321, 1023938, 2597722, 9433543, 20125392, 35212329, summary_df['total_sqft'].sum()]
-}
 
-df = pd.DataFrame(sqft_data)
-df["years"] = df["years"].astype(str)
 fig = px.bar(
-    df,
+    buildings_df,
     x='years',
-    y='square_footage',
+    y='buildings',
     color_discrete_sequence=['#41AC49'],
     text='square_footage'
 )
