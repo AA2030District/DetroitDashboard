@@ -1,0 +1,16 @@
+# Uncomment to enable Azure Monitor OpenTelemetry
+# Ref: aka.ms/functions-azure-monitor-python
+# azure-monitor-opentelemetry
+
+azure-functions
+streamlit==1.39.0
+pandas>=2.0.0
+plotly>=5.14.0
+pymssql>=2.2.0
+sqlalchemy>=2.0.0
+geopy>=2.4.0
+statsmodels>=0.14.0
+xmltodict
+datetime
+streamlit-aggrid
+humanize
