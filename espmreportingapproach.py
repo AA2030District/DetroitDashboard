@@ -1,13 +1,22 @@
-import pyodbc
+﻿import pyodbc
 import random
 import datetime
+import azure.functions as func
 import pandas as pd
+import streamlit as st
+import plotly
+import pymssql
+import sqlalchemy
+import geopy
+import statsmodels
 import requests
 import time
 import sqlite3
 from requests.auth import HTTPBasicAuth 
 import xml.etree.ElementTree as et
 import xmltodict
+import st_aggrid
+import humanize
 from requests.adapters import HTTPAdapter
 import os
 import time
@@ -28,7 +37,7 @@ session = requests.Session()
 adapter = HTTPAdapter(max_retries=retry_strategy)
 session.mount("https://", adapter)
 server='aa2030dashboardfree.database.windows.net'
-database='dashboarddb'
+database='DetroitDB'
 username=os.environ.get("DATABASEUSER")
 password=os.environ.get("DATABASEPW")
 driver= '{ODBC Driver 18 for SQL Server}'
@@ -75,7 +84,7 @@ def connect_with_retry(max_retries=4, backoff_factor=2, timeout=30):
     Returns:    
         pyodbc.Connection object if successful
     """
-    connection_string = f'Driver={driver};Server=tcp:aa2030dashboardfree.database.windows.net,1433;Database=dashboarddb;Uid=CloudSA3d4fc968;Pwd={password};Encrypt=yes;TrustServerCertificate=no;Connection Timeout=30;'
+    connection_string = f'Driver={driver};Server=tcp:{server},1433;Database={database};Uid=CloudSA3d4fc968;Pwd={password};Encrypt=yes;TrustServerCertificate=no;Connection Timeout=30;'
     
     for attempt in range(max_retries):
         try:
@@ -207,13 +216,13 @@ def generatereport(espmidlist):
         "</report>"
     )
     response = session.put(
-        "https://portfoliomanager.energystar.gov/ws/reports/21829340",
+        "https://portfoliomanager.energystar.gov/ws/reports/24393942",
         auth=HTTPBasicAuth(user, pw),
         data=report_xml,
         headers={"Content-Type": "application/xml"},
         timeout=60,
     ).content
-    response =session.post("https://portfoliomanager.energystar.gov/ws/reports/21829340/generate",auth=HTTPBasicAuth(user, pw),timeout=60)
+    response =session.post("https://portfoliomanager.energystar.gov/ws/reports/24393942/generate",auth=HTTPBasicAuth(user, pw),timeout=60)
     results=response.content
     print(results)
     try:
@@ -223,7 +232,7 @@ def generatereport(espmidlist):
         dict_data = None    
         for attempt in range(1, max_download_attempts + 1):
             response = session.get(
-                "https://portfoliomanager.energystar.gov/ws/reports/21829340/download?type=XML",
+                "https://portfoliomanager.energystar.gov/ws/reports/24393942/download?type=XML",
                 auth=HTTPBasicAuth(user, pw),
                 timeout=60,
             )
@@ -249,11 +258,11 @@ def generatereport(espmidlist):
 def errordbhandling():
     espmyearsort="""
     CREATE INDEX ix_espmid_datayear
-    ON ESPMFIRSTTEST (espmid, datayear DESC);
+    ON DetroitDataBase (espmid, datayear DESC);
     """
     try:
-                cursor.execute("ALTER TABLE ESPMFIRSTTEST ADD has_issue bit")
-                print("Added 'has_issue' column to ESPMFIRSTTEST table.")
+                cursor.execute("ALTER TABLE DetroitDataBase ADD has_issue bit")
+                print("Added 'has_issue' column to DetroitDataBase table.")
                 connection.commit()
     except pyodbc.Error as e:
                 if "duplicate column name" in str(e).lower() or "already exists" in str(e).lower():
@@ -261,10 +270,10 @@ def errordbhandling():
                 else:
                     print(f"Warning: Could not add 'has_issue' column: {e}")
     try:
-        cursor.execute("UPDATE ESPMFIRSTTEST SET has_issue = 0")
-        cursor.execute("UPDATE ESPMFIRSTTEST SET has_issue = 1 where hasenergygaps='possible issue' or haswatergaps = 'possible issue' or energylessthan12months = 'possible issue' or waterlessthan12months = 'Possible Issue'")
+        cursor.execute("UPDATE DetroitDataBase SET has_issue = 0")
+        cursor.execute("UPDATE DetroitDataBase SET has_issue = 1 where hasenergygaps='possible issue' or haswatergaps = 'possible issue' or energylessthan12months = 'possible issue' or waterlessthan12months = 'Possible Issue'")
         connection.commit()
-        cursor.execute("CREATE INDEX ix_espm_issue ON ESPMFIRSTTEST (espmid, datayear DESC) WHERE has_issue = 1 WITH (DROP_EXISTING = ON);")
+        cursor.execute("CREATE INDEX ix_espm_issue ON DetroitDataBase (espmid, datayear DESC) WHERE has_issue = 1 WITH (DROP_EXISTING = ON);")
         connection.commit()
     except pyodbc.Error as e:
         print(e)
@@ -280,7 +289,7 @@ try:
 
     # Define the CREATE TABLE SQL query
     create_table_query = """
-    CREATE TABLE ESPMFIRSTTEST (
+    CREATE TABLE DetroitDataBase (
         espmid INT NOT NULL,
         buildingname NVARCHAR(100),
         sqfootage INT,
@@ -303,7 +312,7 @@ try:
         energylessthan12months NVARCHAR(100),
         waterlessthan12months NVARCHAR(100),
         pmparentid INT,
-        CONSTRAINT PK_ESPMFIRSTTEST PRIMARY KEY (espmid, datayear)
+        CONSTRAINT PK_DetroitDataBase PRIMARY KEY (espmid, datayear)
     )
     """ 
     # Execute the query
@@ -319,8 +328,8 @@ try:
             
             # Add new columns if they don't exist (for existing tables)
             try:
-                cursor.execute("ALTER TABLE ESPMFIRSTTEST ADD occupancy NVARCHAR(100)")
-                print("Added 'occupancy' column to ESPMFIRSTTEST table.")
+                cursor.execute("ALTER TABLE DetroitDataBase ADD occupancy NVARCHAR(100)")
+                print("Added 'occupancy' column to DetroitDataBase table.")
                 connection.commit()
             except pyodbc.Error as e:
                 if "duplicate column name" in str(e).lower() or "already exists" in str(e).lower():
@@ -329,8 +338,8 @@ try:
                     print(f"Warning: Could not add 'occupancy' column: {e}")
             
             try:
-                cursor.execute("ALTER TABLE ESPMFIRSTTEST ADD numbuildings NVARCHAR(100)")
-                print("Added 'numbuildings' column to ESPMFIRSTTEST table.")
+                cursor.execute("ALTER TABLE DetroitDataBase ADD numbuildings NVARCHAR(100)")
+                print("Added 'numbuildings' column to DetroitDataBase table.")
                 connection.commit()
             except pyodbc.Error as e:
                 if "duplicate column name" in str(e).lower() or "already exists" in str(e).lower():
@@ -339,8 +348,8 @@ try:
                     print(f"Warning: Could not add 'numbuildings' column: {e}")
             
             try:
-                cursor.execute("ALTER TABLE ESPMFIRSTTEST ADD usetype NVARCHAR(100)")
-                print("Added 'usetype' column to ESPMFIRSTTEST table.")
+                cursor.execute("ALTER TABLE DetroitDataBase ADD usetype NVARCHAR(100)")
+                print("Added 'usetype' column to DetroitDataBase table.")
                 connection.commit()
             except pyodbc.Error as e:
                 if "duplicate column name" in str(e).lower() or "already exists" in str(e).lower():
@@ -349,8 +358,8 @@ try:
                     print(f"Warning: Could not add 'usetype' column: {e}")
 
             try:
-                cursor.execute("ALTER TABLE ESPMFIRSTTEST ADD datayear NVARCHAR(100)")
-                print("Added 'datayear' column to ESPMFIRSTTEST table.")
+                cursor.execute("ALTER TABLE DetroitDataBase ADD datayear NVARCHAR(100)")
+                print("Added 'datayear' column to DetroitDataBase table.")
                 connection.commit()
             except pyodbc.Error as e:
                 if "duplicate column name" in str(e).lower() or "already exists" in str(e).lower():
@@ -360,7 +369,7 @@ try:
 
             try:
                 cursor.execute("""
-                UPDATE ESPMFIRSTTEST
+                UPDATE DetroitDataBase
                 SET datayear = 'UNKNOWN'
                 WHERE datayear IS NULL;
                 """)
@@ -374,22 +383,22 @@ try:
                 SELECT @pk_name = kc.name
                 FROM sys.key_constraints kc
                 JOIN sys.tables t ON kc.parent_object_id = t.object_id
-                WHERE kc.[type] = 'PK' AND t.name = 'ESPMFIRSTTEST';
+                WHERE kc.[type] = 'PK' AND t.name = 'DetroitDataBase';
 
                 IF @pk_name IS NOT NULL
-                    EXEC('ALTER TABLE ESPMFIRSTTEST DROP CONSTRAINT [' + @pk_name + ']');
+                    EXEC('ALTER TABLE DetroitDataBase DROP CONSTRAINT [' + @pk_name + ']');
 
-                ALTER TABLE ESPMFIRSTTEST ALTER COLUMN datayear NVARCHAR(100) NOT NULL;
-                ALTER TABLE ESPMFIRSTTEST ADD CONSTRAINT PK_ESPMFIRSTTEST PRIMARY KEY (espmid, datayear);
+                ALTER TABLE DetroitDataBase ALTER COLUMN datayear NVARCHAR(100) NOT NULL;
+                ALTER TABLE DetroitDataBase ADD CONSTRAINT PK_DetroitDataBase PRIMARY KEY (espmid, datayear);
                 """)
                 connection.commit()
-                print("Updated primary key to (espmid, datayear) on ESPMFIRSTTEST.")
+                print("Updated primary key to (espmid, datayear) on DetroitDataBase.")
             except pyodbc.Error as e:
-                print(f"Warning: Could not update primary key on ESPMFIRSTTEST: {e}")
+                print(f"Warning: Could not update primary key on DetroitDataBase: {e}")
             
             try:
-                cursor.execute("ALTER TABLE ESPMFIRSTTEST ADD yearbuilt NVARCHAR(100)")
-                print("Added 'yearbuilt' column to ESPMFIRSTTEST table.")
+                cursor.execute("ALTER TABLE DetroitDataBase ADD yearbuilt NVARCHAR(100)")
+                print("Added 'yearbuilt' column to DetroitDataBase table.")
                 connection.commit()
             except pyodbc.Error as e:
                 if "duplicate column name" in str(e).lower() or "already exists" in str(e).lower():
@@ -398,8 +407,8 @@ try:
                     print(f"Warning: Could not add 'yearbuilt' column: {e}")
             
             try:
-                cursor.execute("ALTER TABLE ESPMFIRSTTEST ADD siteeui FLOAT")
-                print("Added 'siteeui' column to ESPMFIRSTTEST table.")
+                cursor.execute("ALTER TABLE DetroitDataBase ADD siteeui FLOAT")
+                print("Added 'siteeui' column to DetroitDataBase table.")
                 connection.commit()
             except pyodbc.Error as e:
                 if "duplicate column name" in str(e).lower() or "already exists" in str(e).lower():
@@ -408,8 +417,8 @@ try:
                     print(f"Warning: Could not add 'siteeui' column: {e}")
 
             try:
-                cursor.execute("ALTER TABLE ESPMFIRSTTEST ADD weathernormalizedsiteeui FLOAT")
-                print("Added 'weathernormalizedsiteeui' column to ESPMFIRSTTEST table.")
+                cursor.execute("ALTER TABLE DetroitDataBase ADD weathernormalizedsiteeui FLOAT")
+                print("Added 'weathernormalizedsiteeui' column to DetroitDataBase table.")
                 connection.commit()
             except pyodbc.Error as e:
                 if "duplicate column name" in str(e).lower() or "already exists" in str(e).lower():
@@ -418,8 +427,8 @@ try:
                     print(f"Warning: Could not add 'weathernormalizedsiteeui' column: {e}")
 
             try:
-                cursor.execute("ALTER TABLE ESPMFIRSTTEST ADD energystarscore INT")
-                print("Added 'energystarscore' column to ESPMFIRSTTEST table.")
+                cursor.execute("ALTER TABLE DetroitDataBase ADD energystarscore INT")
+                print("Added 'energystarscore' column to DetroitDataBase table.")
                 connection.commit()
             except pyodbc.Error as e:
                 if "duplicate column name" in str(e).lower() or "already exists" in str(e).lower():
@@ -428,8 +437,8 @@ try:
                     print(f"Warning: Could not add 'energystarscore' column: {e}")
 
             try:
-                cursor.execute("ALTER TABLE ESPMFIRSTTEST ADD wui NVARCHAR(100)")
-                print("Added 'wui' column to ESPMFIRSTTEST table.")
+                cursor.execute("ALTER TABLE DetroitDataBase ADD wui NVARCHAR(100)")
+                print("Added 'wui' column to DetroitDataBase table.")
                 connection.commit()
             except pyodbc.Error as e:
                 if "duplicate column name" in str(e).lower() or "already exists" in str(e).lower():
@@ -438,8 +447,8 @@ try:
                     print(f"Warning: Could not add 'wui' column: {e}")
 
             try:
-                cursor.execute("ALTER TABLE ESPMFIRSTTEST ADD energycost FLOAT")
-                print("Added 'energycost' column to ESPMFIRSTTEST table.")
+                cursor.execute("ALTER TABLE DetroitDataBase ADD energycost FLOAT")
+                print("Added 'energycost' column to DetroitDataBase table.")
                 connection.commit()
             except pyodbc.Error as e:
                 if "duplicate column name" in str(e).lower() or "already exists" in str(e).lower():
@@ -448,8 +457,8 @@ try:
                     print(f"Warning: Could not add 'energycost' column: {e}")
 
             try:
-                cursor.execute("ALTER TABLE ESPMFIRSTTEST ADD energycostintensity FLOAT")
-                print("Added 'energycostintensity' column to ESPMFIRSTTEST table.")
+                cursor.execute("ALTER TABLE DetroitDataBase ADD energycostintensity FLOAT")
+                print("Added 'energycostintensity' column to DetroitDataBase table.")
                 connection.commit()
             except pyodbc.Error as e:
                 if "duplicate column name" in str(e).lower() or "already exists" in str(e).lower():
@@ -458,8 +467,8 @@ try:
                     print(f"Warning: Could not add 'energycostintensity' column: {e}")
 
             try:
-                cursor.execute("ALTER TABLE ESPMFIRSTTEST ADD energycostelectricitygridpurchase FLOAT")
-                print("Added 'energycostelectricitygridpurchase' column to ESPMFIRSTTEST table.")
+                cursor.execute("ALTER TABLE DetroitDataBase ADD energycostelectricitygridpurchase FLOAT")
+                print("Added 'energycostelectricitygridpurchase' column to DetroitDataBase table.")
                 connection.commit()
             except pyodbc.Error as e:
                 if "duplicate column name" in str(e).lower() or "already exists" in str(e).lower():
@@ -468,8 +477,8 @@ try:
                     print(f"Warning: Could not add 'energycostelectricitygridpurchase' column: {e}")
 
             try:
-                cursor.execute("ALTER TABLE ESPMFIRSTTEST ADD energycostnaturalgas FLOAT")
-                print("Added 'energycostnaturalgas' column to ESPMFIRSTTEST table.")
+                cursor.execute("ALTER TABLE DetroitDataBase ADD energycostnaturalgas FLOAT")
+                print("Added 'energycostnaturalgas' column to DetroitDataBase table.")
                 connection.commit()
             except pyodbc.Error as e:
                 if "duplicate column name" in str(e).lower() or "already exists" in str(e).lower():
@@ -478,8 +487,8 @@ try:
                     print(f"Warning: Could not add 'energycostnaturalgas' column: {e}")
             
             try:
-                cursor.execute("ALTER TABLE ESPMFIRSTTEST ADD hasenergygaps NVARCHAR(100)")
-                print("Added 'hasenergygaps' column to ESPMFIRSTTEST table.")
+                cursor.execute("ALTER TABLE DetroitDataBase ADD hasenergygaps NVARCHAR(100)")
+                print("Added 'hasenergygaps' column to DetroitDataBase table.")
                 connection.commit()
             except pyodbc.Error as e:
                 if "duplicate column name" in str(e).lower() or "already exists" in str(e).lower():
@@ -488,8 +497,8 @@ try:
                     print(f"Warning: Could not add 'hasenergygaps' column: {e}")
             
             try:
-                cursor.execute("ALTER TABLE ESPMFIRSTTEST ADD haswatergaps NVARCHAR(100)")
-                print("Added 'haswatergaps' column to ESPMFIRSTTEST table.")
+                cursor.execute("ALTER TABLE DetroitDataBase ADD haswatergaps NVARCHAR(100)")
+                print("Added 'haswatergaps' column to DetroitDataBase table.")
                 connection.commit()
             except pyodbc.Error as e:
                 if "duplicate column name" in str(e).lower() or "already exists" in str(e).lower():
@@ -498,8 +507,8 @@ try:
                     print(f"Warning: Could not add 'haswatergaps' column: {e}")
 
             try:
-                cursor.execute("ALTER TABLE ESPMFIRSTTEST ADD energylessthan12months NVARCHAR(100)")
-                print("Added 'energylessthan12months' column to ESPMFIRSTTEST table.")
+                cursor.execute("ALTER TABLE DetroitDataBase ADD energylessthan12months NVARCHAR(100)")
+                print("Added 'energylessthan12months' column to DetroitDataBase table.")
                 connection.commit()
             except pyodbc.Error as e:
                 if "duplicate column name" in str(e).lower() or "already exists" in str(e).lower():
@@ -508,8 +517,8 @@ try:
                     print(f"Warning: Could not add 'energylessthan12months' column: {e}")
 
             try:
-                cursor.execute("ALTER TABLE ESPMFIRSTTEST ADD waterlessthan12months NVARCHAR(100)")
-                print("Added 'waterlessthan12months' column to ESPMFIRSTTEST table.")
+                cursor.execute("ALTER TABLE DetroitDataBase ADD waterlessthan12months NVARCHAR(100)")
+                print("Added 'waterlessthan12months' column to DetroitDataBase table.")
                 connection.commit()
             except pyodbc.Error as e:
                 if "duplicate column name" in str(e).lower() or "already exists" in str(e).lower():
@@ -519,152 +528,152 @@ try:
             
             try:
                 cursor.execute("""
-                IF COL_LENGTH('ESPMFIRSTTEST', 'sqfootage') IS NULL
+                IF COL_LENGTH('DetroitDataBase', 'sqfootage') IS NULL
                 BEGIN
-                    ALTER TABLE ESPMFIRSTTEST ADD sqfootage INT NULL;
+                    ALTER TABLE DetroitDataBase ADD sqfootage INT NULL;
                 END
                 ELSE IF EXISTS (
                     SELECT 1
                     FROM sys.columns c
                     JOIN sys.types t ON c.user_type_id = t.user_type_id
-                    WHERE c.object_id = OBJECT_ID('ESPMFIRSTTEST')
+                    WHERE c.object_id = OBJECT_ID('DetroitDataBase')
                       AND c.name = 'sqfootage'
                       AND t.name <> 'int'
                 )
                 BEGIN
-                    UPDATE ESPMFIRSTTEST
+                    UPDATE DetroitDataBase
                     SET sqfootage = NULL
                     WHERE sqfootage IS NOT NULL
                       AND TRY_CONVERT(INT, TRY_CONVERT(FLOAT, REPLACE(sqfootage, ',', ''))) IS NULL;
 
-                    UPDATE ESPMFIRSTTEST
+                    UPDATE DetroitDataBase
                     SET sqfootage = TRY_CONVERT(INT, TRY_CONVERT(FLOAT, REPLACE(sqfootage, ',', '')))
                     WHERE sqfootage IS NOT NULL;
 
-                    ALTER TABLE ESPMFIRSTTEST ALTER COLUMN sqfootage INT NULL;
+                    ALTER TABLE DetroitDataBase ALTER COLUMN sqfootage INT NULL;
                 END
                 """)
-                print("Ensured 'sqfootage' column exists as INT on ESPMFIRSTTEST table.")
+                print("Ensured 'sqfootage' column exists as INT on DetroitDataBase table.")
                 connection.commit()
             except pyodbc.Error as e:
                 print(f"Warning: Could not ensure 'sqfootage' INT column: {e}")
 
             try:
                 cursor.execute("""
-                IF COL_LENGTH('ESPMFIRSTTEST', 'siteeui') IS NULL
+                IF COL_LENGTH('DetroitDataBase', 'siteeui') IS NULL
                 BEGIN
-                    ALTER TABLE ESPMFIRSTTEST ADD siteeui FLOAT NULL;
+                    ALTER TABLE DetroitDataBase ADD siteeui FLOAT NULL;
                 END
                 ELSE IF EXISTS (
                     SELECT 1
                     FROM sys.columns c
                     JOIN sys.types t ON c.user_type_id = t.user_type_id
-                    WHERE c.object_id = OBJECT_ID('ESPMFIRSTTEST')
+                    WHERE c.object_id = OBJECT_ID('DetroitDataBase')
                       AND c.name = 'siteeui'
                       AND t.name <> 'float'
                 )
                 BEGIN
-                    UPDATE ESPMFIRSTTEST
+                    UPDATE DetroitDataBase
                     SET siteeui = NULL
                     WHERE siteeui IS NOT NULL
                       AND TRY_CONVERT(FLOAT, TRY_CONVERT(FLOAT, REPLACE(siteeui, ',', ''))) IS NULL;
 
-                    UPDATE ESPMFIRSTTEST
+                    UPDATE DetroitDataBase
                     SET siteeui = TRY_CONVERT(FLOAT, TRY_CONVERT(FLOAT, REPLACE(siteeui, ',', '')))
                     WHERE siteeui IS NOT NULL;
 
-                    ALTER TABLE ESPMFIRSTTEST ALTER COLUMN siteeui FLOAT NULL;
+                    ALTER TABLE DetroitDataBase ALTER COLUMN siteeui FLOAT NULL;
                 END
                 """)
-                print("Ensured 'siteeui' column exists as FLOAT on ESPMFIRSTTEST table.")
+                print("Ensured 'siteeui' column exists as FLOAT on DetroitDataBase table.")
                 connection.commit()
             except pyodbc.Error as e:
                 print(f"Warning: Could not ensure 'siteeui' FLOAT column: {e}")
 
             try:
                 cursor.execute("""
-                IF COL_LENGTH('ESPMFIRSTTEST', 'weathernormalizedsiteeui') IS NULL
-                    ALTER TABLE ESPMFIRSTTEST ADD weathernormalizedsiteeui FLOAT NULL;
+                IF COL_LENGTH('DetroitDataBase', 'weathernormalizedsiteeui') IS NULL
+                    ALTER TABLE DetroitDataBase ADD weathernormalizedsiteeui FLOAT NULL;
                 ELSE IF EXISTS (
                     SELECT 1
                     FROM sys.columns c
                     JOIN sys.types t ON c.user_type_id = t.user_type_id
-                    WHERE c.object_id = OBJECT_ID('ESPMFIRSTTEST')
+                    WHERE c.object_id = OBJECT_ID('DetroitDataBase')
                       AND c.name = 'weathernormalizedsiteeui'
                       AND t.name <> 'float'
                 )
                 BEGIN
-                    UPDATE ESPMFIRSTTEST
+                    UPDATE DetroitDataBase
                     SET weathernormalizedsiteeui = NULL
                     WHERE weathernormalizedsiteeui IS NOT NULL
                       AND TRY_CONVERT(FLOAT, TRY_CONVERT(FLOAT, REPLACE(weathernormalizedsiteeui, ',', ''))) IS NULL;
 
-                    UPDATE ESPMFIRSTTEST
+                    UPDATE DetroitDataBase
                     SET weathernormalizedsiteeui = TRY_CONVERT(FLOAT, TRY_CONVERT(FLOAT, REPLACE(weathernormalizedsiteeui, ',', '')))
                     WHERE weathernormalizedsiteeui IS NOT NULL;
 
-                    ALTER TABLE ESPMFIRSTTEST ALTER COLUMN weathernormalizedsiteeui FLOAT NULL;
+                    ALTER TABLE DetroitDataBase ALTER COLUMN weathernormalizedsiteeui FLOAT NULL;
                 END
                 """)
-                print("Ensured 'weathernormalizedsiteeui' column exists as FLOAT on ESPMFIRSTTEST table.")
+                print("Ensured 'weathernormalizedsiteeui' column exists as FLOAT on DetroitDataBase table.")
                 connection.commit()
             except pyodbc.Error as e:
                 print(f"Warning: Could not ensure 'weathernormalizedsiteeui' FLOAT column: {e}")
 
             try:
                 cursor.execute("""
-                IF COL_LENGTH('ESPMFIRSTTEST', 'energystarscore') IS NULL
-                    ALTER TABLE ESPMFIRSTTEST ADD energystarscore INT NULL;
+                IF COL_LENGTH('DetroitDataBase', 'energystarscore') IS NULL
+                    ALTER TABLE DetroitDataBase ADD energystarscore INT NULL;
                 ELSE IF EXISTS (
                     SELECT 1
                     FROM sys.columns c
                     JOIN sys.types t ON c.user_type_id = t.user_type_id
-                    WHERE c.object_id = OBJECT_ID('ESPMFIRSTTEST')
+                    WHERE c.object_id = OBJECT_ID('DetroitDataBase')
                       AND c.name = 'energystarscore'
                       AND t.name <> 'int'
                 )
                 BEGIN
-                    UPDATE ESPMFIRSTTEST
+                    UPDATE DetroitDataBase
                     SET energystarscore = NULL
                     WHERE energystarscore IS NOT NULL
                       AND TRY_CONVERT(INT, TRY_CONVERT(FLOAT, REPLACE(energystarscore, ',', ''))) IS NULL;
 
-                    UPDATE ESPMFIRSTTEST
+                    UPDATE DetroitDataBase
                     SET energystarscore = TRY_CONVERT(INT, TRY_CONVERT(FLOAT, REPLACE(energystarscore, ',', '')))
                     WHERE energystarscore IS NOT NULL;
 
-                    ALTER TABLE ESPMFIRSTTEST ALTER COLUMN energystarscore INT NULL;
+                    ALTER TABLE DetroitDataBase ALTER COLUMN energystarscore INT NULL;
                 END
                 """)
-                print("Ensured 'energystarscore' column exists as INT on ESPMFIRSTTEST table.")
+                print("Ensured 'energystarscore' column exists as INT on DetroitDataBase table.")
                 connection.commit()
             except pyodbc.Error as e:
                 print(f"Warning: Could not ensure 'energystarscore' INT column: {e}")
 
             try:
                 cursor.execute("""
-                IF COL_LENGTH('ESPMFIRSTTEST', 'pmparentid') IS NULL
+                IF COL_LENGTH('DetroitDataBase', 'pmparentid') IS NULL
                 BEGIN
-                    ALTER TABLE ESPMFIRSTTEST ADD pmparentid INT NULL;
+                    ALTER TABLE DetroitDataBase ADD pmparentid INT NULL;
                 END
                 ELSE IF EXISTS (
                     SELECT 1
                     FROM sys.columns c
                     JOIN sys.types t ON c.user_type_id = t.user_type_id
-                    WHERE c.object_id = OBJECT_ID('ESPMFIRSTTEST')
+                    WHERE c.object_id = OBJECT_ID('DetroitDataBase')
                       AND c.name = 'pmparentid'
                       AND t.name <> 'int'
                 )
                 BEGIN
-                    UPDATE ESPMFIRSTTEST
+                    UPDATE DetroitDataBase
                     SET pmparentid = NULL
                     WHERE pmparentid IS NOT NULL
                       AND TRY_CONVERT(INT, pmparentid) IS NULL;
 
-                    ALTER TABLE ESPMFIRSTTEST ALTER COLUMN pmparentid INT NULL;
+                    ALTER TABLE DetroitDataBase ALTER COLUMN pmparentid INT NULL;
                 END
                 """)
-                print("Ensured 'pmparentid' column exists as INT on ESPMFIRSTTEST table.")
+                print("Ensured 'pmparentid' column exists as INT on DetroitDataBase table.")
                 connection.commit()
             except pyodbc.Error as e:
                 print(f"Warning: Could not ensure 'pmparentid' INT column: {e}")
@@ -685,12 +694,12 @@ try:
     
     batch_size = 350  # safe under the 2,000,000 limit
 
-    # Create temp table with same schema as ESPMFIRSTTEST for session-scoped processing
+    # Create temp table with same schema as DetroitDataBase for session-scoped processing
     create_temp_table_query = """
-    IF OBJECT_ID('tempdb..#ESPMFIRSTTESTTEMP') IS NOT NULL
-        DROP TABLE #ESPMFIRSTTESTTEMP;
+    IF OBJECT_ID('tempdb..#DetroitDataBaseTEMP') IS NOT NULL
+        DROP TABLE #DetroitDataBaseTEMP;
 
-    CREATE TABLE #ESPMFIRSTTESTTEMP (
+    CREATE TABLE #DetroitDataBaseTEMP (
         espmid INT NOT NULL,
         buildingname NVARCHAR(100),
         sqfootage INT,
@@ -713,11 +722,11 @@ try:
         energylessthan12months NVARCHAR(100),
         waterlessthan12months NVARCHAR(100),
         pmparentid INT,
-        CONSTRAINT PK_ESPMFIRSTTESTTEMP PRIMARY KEY (espmid, datayear)
+        CONSTRAINT PK_DetroitDataBaseTEMP PRIMARY KEY (espmid, datayear)
     )
     """
     cursor.execute(create_temp_table_query)
-    print("Temp table '#ESPMFIRSTTESTTEMP' created successfully.")
+    print("Temp table '#DetroitDataBaseTEMP' created successfully.")
     report_output = generatereport(idlist)
 
     ##create a list of tuples of all building data
@@ -801,15 +810,15 @@ try:
                 energycostnaturalgas = safe_to_decimal(metric_value)
         buildingdatalist.append((espmid,buildingname,sqfootage,address,occupancy,numbuildings,primarypropertytype,yearbuilt,datayear,siteeui,weathernormalizedsiteeui,energystarscore,wui,energycost,energycostintensity,energycostelectricitygridpurchase,energycostnaturalgas,hasenergygaps,haswatergaps,energylessthan12months,waterlessthan12months,pmparentid))
     temp_insert_query = """
-                INSERT INTO #ESPMFIRSTTESTTEMP (espmid, buildingname, sqfootage, address, occupancy, numbuildings, usetype, yearbuilt, datayear, siteeui, weathernormalizedsiteeui, energystarscore, wui, energycost, energycostintensity, energycostelectricitygridpurchase, energycostnaturalgas, hasenergygaps, haswatergaps, energylessthan12months, waterlessthan12months, pmparentid) 
+                INSERT INTO #DetroitDataBaseTEMP (espmid, buildingname, sqfootage, address, occupancy, numbuildings, usetype, yearbuilt, datayear, siteeui, weathernormalizedsiteeui, energystarscore, wui, energycost, energycostintensity, energycostelectricitygridpurchase, energycostnaturalgas, hasenergygaps, haswatergaps, energylessthan12months, waterlessthan12months, pmparentid) 
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """ 
    
     cursor.fast_executemany = True
     cursor.executemany(temp_insert_query, buildingdatalist)
     merge_query = """
-                MERGE ESPMFIRSTTEST AS target
-                USING #ESPMFIRSTTESTTEMP AS source
+                MERGE DetroitDataBase AS target
+                USING #DetroitDataBaseTEMP AS source
                 ON target.espmid = source.espmid
                    AND target.datayear = source.datayear
                 WHEN MATCHED AND (
@@ -862,8 +871,8 @@ try:
     if buildingdatalist:
         cursor.execute(merge_query)
         connection.commit()
-        print("MERGE committed to ESPMFIRSTTEST.")
-        cursor.execute("DROP TABLE #ESPMFIRSTTESTTEMP")
+        print("MERGE committed to DetroitDataBase.")
+        cursor.execute("DROP TABLE #DetroitDataBaseTEMP")
         errordbhandling()
 
 
@@ -880,3 +889,4 @@ finally:
     if connection:
         connection.close()
     print("Connection closed.")
+

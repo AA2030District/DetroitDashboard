@@ -1,4 +1,4 @@
-import streamlit as st
+﻿import streamlit as st
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
@@ -71,7 +71,7 @@ SELECT
     COALESCE(SUM(TRY_CAST([sqfootage] AS DECIMAL(10,2))), 0) as total_sqft,
     AVG(TRY_CAST([siteeui] AS DECIMAL(10,2))) as avg_siteeui,
     COALESCE(SUM(TRY_CAST([numbuildings] AS DECIMAL(10,2))), 0) as building_count
-FROM [dbo].[ESPMFIRSTTEST]
+FROM [dbo].[DetroitDataBase]
 WHERE [datayear] = 2025
     AND ISNULL(pmparentid,espmid)=espmid 
 HAVING COALESCE(SUM(TRY_CAST([sqfootage] AS DECIMAL(10,2))), 0) > 0"""
@@ -80,7 +80,7 @@ summary_df = conn.query(summary_query)
 energy_ok_buildings_query = """
 SELECT
     COALESCE(SUM(TRY_CAST([numbuildings] AS DECIMAL(10,2))), 0) AS energy_ok_buildings
-FROM [dbo].[ESPMFIRSTTEST]
+FROM [dbo].[DetroitDataBase]
 WHERE TRY_CAST([datayear] AS INT) = 2025
     AND ISNULL(pmparentid, espmid) = espmid
     AND [hasenergygaps] = 'OK'
@@ -95,7 +95,7 @@ else:
 water_ok_buildings_query = """
 SELECT
     COALESCE(SUM(TRY_CAST([numbuildings] AS DECIMAL(10,2))), 0) AS water_ok_buildings
-FROM [dbo].[ESPMFIRSTTEST]
+FROM [dbo].[DetroitDataBase]
 WHERE TRY_CAST([datayear] AS INT) = 2025
     AND ISNULL(pmparentid, espmid) = espmid
     AND [haswatergaps] = 'OK'
@@ -202,7 +202,7 @@ SELECT
     COALESCE(SUM(TRY_CAST([sqfootage] AS DECIMAL(10,2))), 0) as total_sqft,
     AVG(TRY_CAST([siteeui] AS DECIMAL(10,2))) as avg_siteeui,
     COUNT(DISTINCT [espmid]) as property_count
-FROM [dbo].[ESPMFIRSTTEST]
+FROM [dbo].[DetroitDataBase]
 WHERE [datayear] = 2025
 AND ISNULL(pmparentid,espmid)=espmid 
 GROUP BY [usetype]
@@ -564,7 +564,7 @@ yearly_query = """
         COALESCE(SUM(TRY_CAST([sqfootage] AS DECIMAL(10,2))), 0) as total_sqft,
         AVG(TRY_CAST([siteeui] AS DECIMAL(10,2))) as avg_siteeui,
         AVG(TRY_CAST([wui] AS DECIMAL(10,2))) as avg_wui
-    FROM [dbo].[ESPMFIRSTTEST]
+    FROM [dbo].[DetroitDataBase]
     WHERE [datayear] IN (2021, 2022, 2023, 2024, 2025)
         AND ISNULL(pmparentid,espmid)=espmid 
         AND hasenergygaps = 'OK' 
@@ -778,6 +778,7 @@ st.plotly_chart(apply_white_background(fig_ghg), width="content")
 #     st.metric(" Total kWh Saved", f"{total_kwh_saved:,}")
 # with col2:
 #     st.metric("?? Total Lightbulbs Saved", f"{total_lightbulbs_saved:,.0f}")
+
 
 
 

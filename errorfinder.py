@@ -1,4 +1,4 @@
-from pyarrow import null
+﻿from pyarrow import null
 import streamlit as st
 import pandas as pd
 import plotly.express as px
@@ -322,7 +322,7 @@ buildings_query = """
             PARTITION BY espmid
             ORDER BY datayear DESC
         ) AS rn
-    FROM ESPMFIRSTTEST
+    FROM DetroitDataBase
     WHERE has_issue = 1
 )
 SELECT
@@ -406,3 +406,4 @@ with errors:
                 st.rerun()
     else:
         st.write("No Building Selected")
+
