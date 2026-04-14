@@ -23,9 +23,11 @@ from urllib3.util.retry import Retry
 from dotenv import load_dotenv
 import os
 
-load_dotenv("secrets.env")
+load_dotenv("secrets.env", override=True)
 user = os.environ.get("ENERGY_STAR_PORTFOLIO_MANAGER_USERNAME")
 pw = os.environ.get("ENERGY_STAR_PORTFOLIO_MANAGER_PASSWORD")
+print(user)
+print(pw)
 retry_strategy = Retry(
     total=3,  # Try 3 times
     backoff_factor=1,
@@ -682,14 +684,11 @@ try:
 
     #Creates a list of ALL pmid's in the account
     idlist=[]
-    response = requests.get(f'https://portfoliomanager.energystar.gov/ws/account/216165/property/list', auth=HTTPBasicAuth(user, pw), timeout=60)
+    response = requests.get(f'https://portfoliomanager.energystar.gov/ws/account/203479/property/list', auth=HTTPBasicAuth(user, pw), timeout=60)
     dict_data = xmltodict.parse(response.content)
     for entry in dict_data['response']['links']['link']:
         idlist.append(entry['@id'])
     #these are causing problems and we don't have access to them for some reason they still show up
-    idlist.remove('25096219')
-    idlist.remove('51914193')
-    idlist.remove('48488294')
     
     batch_size = 350  # safe under the 2,000,000 limit
 
