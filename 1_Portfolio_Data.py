@@ -71,9 +71,9 @@ SELECT
     COALESCE(SUM(TRY_CAST([sqfootage] AS DECIMAL(10,2))), 0) as total_sqft,
     AVG(TRY_CAST([siteeui] AS DECIMAL(10,2))) as avg_siteeui,
     COALESCE(SUM(TRY_CAST([numbuildings] AS DECIMAL(10,2))), 0) as building_count
-    [yearcreatedinespm]
 FROM [dbo].[DetroitDataBase]
-    AND ISNULL(pmparentid,espmid)=espmid 
+WHERE ISNULL(pmparentid,espmid)=espmid 
+AND
 HAVING COALESCE(SUM(TRY_CAST([sqfootage] AS DECIMAL(10,2))), 0) > 0"""
 summary_df = conn.query(summary_query)
 
