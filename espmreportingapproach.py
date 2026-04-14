@@ -26,8 +26,6 @@ import os
 load_dotenv("secrets.env", override=True)
 user = os.environ.get("ENERGY_STAR_PORTFOLIO_MANAGER_USERNAME")
 pw = os.environ.get("ENERGY_STAR_PORTFOLIO_MANAGER_PASSWORD")
-print(user)
-print(pw)
 retry_strategy = Retry(
     total=3,  # Try 3 times
     backoff_factor=1,
