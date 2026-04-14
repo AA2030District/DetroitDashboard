@@ -13,3 +13,4 @@ statsmodels>=0.14.0
 xmltodict
 streamlit-aggrid
 humanize
+python-dotenv
