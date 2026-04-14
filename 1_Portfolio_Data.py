@@ -144,7 +144,7 @@ property_rollup AS (
         espmid,
         MAX(TRY_CAST([yearcreatedinespm] AS INT)) AS yearcreatedinespm,
         MAX(TRY_CAST([numbuildings] AS DECIMAL(18,2))) AS numbuildings
-        sqfootage,
+        MAX(TRY_CAST([sqfootage] AS INT(18,2))) AS sqfootage
     FROM [dbo].[DetroitDataBase]
     WHERE ISNULL(pmparentid, espmid) = espmid
     GROUP BY espmid
