@@ -199,7 +199,7 @@ fig = px.bar(
     x='year',
     y='total_sqft',
     color_discrete_sequence=['#41AC49'],
-    text='square_footage'
+    text='total_sqft'
 )
 fig.update_traces(
     texttemplate='%{text:,.0f}',
