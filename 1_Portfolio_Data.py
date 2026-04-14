@@ -197,7 +197,7 @@ st.plotly_chart(apply_white_background(fig), width="content")
 fig = px.bar(
     buildings_df,
     x='years',
-    y='buildings',
+    y='square_footage',
     color_discrete_sequence=['#41AC49'],
     text='square_footage'
 )
