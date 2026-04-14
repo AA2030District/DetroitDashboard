@@ -71,8 +71,8 @@ SELECT
     COALESCE(SUM(TRY_CAST([sqfootage] AS DECIMAL(10,2))), 0) as total_sqft,
     AVG(TRY_CAST([siteeui] AS DECIMAL(10,2))) as avg_siteeui,
     COALESCE(SUM(TRY_CAST([numbuildings] AS DECIMAL(10,2))), 0) as building_count
+    [yearcreatedinespm]
 FROM [dbo].[DetroitDataBase]
-WHERE [datayear] = 2025
     AND ISNULL(pmparentid,espmid)=espmid 
 HAVING COALESCE(SUM(TRY_CAST([sqfootage] AS DECIMAL(10,2))), 0) > 0"""
 summary_df = conn.query(summary_query)
@@ -126,18 +126,48 @@ with col4:
 site_eui_first_slot = st.empty()
 
 
-# Manually inserted data, not taken from SQL/Energy Star
-buildings_data = {
-    "years": [2018, 2019, "2020/2021", 2022, 2023, 2024, 2025],
-    "buildings": [25, 36, 99, 274, 415, 1154, summary_df['building_count'].sum()]
-}
-
-df = pd.DataFrame(buildings_data)
-df["years"] = df["years"].astype(str)
-df_filtered = df[df['years'] != '2020']
+# Building counts by year from DB:
+# include a property's building count when report_year >= yearcreatedinespm
+buildings_by_year_query = """
+WITH years AS (
+    SELECT 2018 AS report_year UNION ALL
+    SELECT 2019 UNION ALL
+    SELECT 2020 UNION ALL
+    SELECT 2021 UNION ALL
+    SELECT 2022 UNION ALL
+    SELECT 2023 UNION ALL
+    SELECT 2024 UNION ALL
+    SELECT 2025
+),
+property_rollup AS (
+    SELECT
+        espmid,
+        MAX(TRY_CAST([yearcreatedinespm] AS INT)) AS yearcreatedinespm,
+        MAX(TRY_CAST([numbuildings] AS DECIMAL(18,2))) AS numbuildings
+    FROM [dbo].[DetroitDataBase]
+    WHERE ISNULL(pmparentid, espmid) = espmid
+    GROUP BY espmid
+)
+SELECT
+    y.report_year AS [year],
+    COALESCE(SUM(pr.numbuildings), 0) AS buildings
+FROM years y
+LEFT JOIN property_rollup pr
+    ON pr.yearcreatedinespm <= y.report_year
+GROUP BY y.report_year
+ORDER BY y.report_year
+"""
+buildings_df = conn.query(buildings_by_year_query)
+buildings_df["year"] = buildings_df["year"].astype(str)
+buildings_df["buildings"] = (
+    pd.to_numeric(buildings_df["buildings"], errors="coerce")
+    .fillna(0)
+    .round()
+    .astype(int)
+)
 fig = px.bar(
-    df,
-    x='years',
+    buildings_df,
+    x='year',
     y='buildings',
     color_discrete_sequence=['#41AC49'],
     text='buildings'

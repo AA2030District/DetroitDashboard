@@ -698,6 +698,12 @@ try:
     dict_data = xmltodict.parse(response.content)
     for entry in dict_data['response']['links']['link']:
         idlist.append(entry['@id'])
+    ## deletes all buildings from DB not in streamlit list 
+    query = f"DELETE FROM DetroitDataBase where espmid not in ({idlist})"
+    cursor.execute(query)
+    connection.commit()
+
+    
     #these are causing problems and we don't have access to them for some reason they still show up
     
     batch_size = 350  # safe under the 2,000,000 limit
