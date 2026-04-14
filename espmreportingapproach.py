@@ -1,7 +1,6 @@
 ﻿import pyodbc
 import random
 import datetime
-import azure.functions as func
 import pandas as pd
 import streamlit as st
 import plotly
