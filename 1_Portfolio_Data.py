@@ -573,14 +573,6 @@ st.plotly_chart(apply_white_background(fig_pie),width="stretch")
 # st.plotly_chart(apply_white_background(fig), use_container_width=True, config={"responsive": True})
 
 
-
-eui_data = {
-    "years": [2018, 2019, 2021, 2022, 2023, 2024,2025],
-    "baseline": [94.5, 78.33, 54.32, 80, 74.14, 54.71,62.2],
-    "actual": [113.08, 74.15, 50.91, 79.68, 70.3, 82.44,76.13],
-    "target": [64.3, 53.3, 36.9, 54.4, 50.4, 43.7,32.775]
-}
-
 yearly_query = """
     SELECT 
         TRY_CAST([datayear] AS INT) as datayear,
@@ -604,7 +596,7 @@ df_yearly = conn.query(yearly_query)
 df_yearly = df_yearly.sort_values('datayear')
 
 # Site EUI bar chart (rendered in first graph slot) from fixed eui_data
-df_eui_bar = pd.DataFrame(eui_data).rename(columns={"years": "datayear", "actual": "avg_siteeui"})
+df_eui_bar = pd.DataFrame(df_yearly).rename(columns={"years": "datayear", "actual": "avg_siteeui"})
 df_eui_bar["datayear"] = df_eui_bar["datayear"].astype(str)
 
 df_eui_bar_melted = df_eui_bar.melt(
