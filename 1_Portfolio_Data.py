@@ -599,7 +599,7 @@ fig_eui_bar = px.bar(
     df_yearly,
     x='datayear',
     y='avg_siteeui',
-    color='series',
+    # color='series',
     barmode='group',
     title='Average Site EUI by Data Year (Bar Chart)',
     labels={'eui': 'EUI (kBtu/ft^2)', 'datayear': 'Data Year', 'series': ''},
