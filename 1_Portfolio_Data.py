@@ -596,7 +596,7 @@ df_yearly = conn.query(yearly_query)
 df_yearly = df_yearly.sort_values('datayear')
 
 fig_eui_bar = px.bar(
-    yearly_query,
+    df_yearly,
     x='datayear',
     y='avg_siteeui',
     color='series',
