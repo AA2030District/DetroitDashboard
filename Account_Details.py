@@ -24,7 +24,9 @@ conn = st.connection("sql", type="sql")
 base_list_query = """
      SELECT
     e.*,
-    p.[portfolio] AS portfolio
+    p.[portfolio] AS portfolio,
+    p.[contact] AS contact,
+    p.[contactemail] AS contactemail
 FROM [dbo].[DetroitDataBase] e
 left JOIN [dbo].[portfolios] p
     ON e.[espmid] = p.[espmid]
