@@ -23,7 +23,7 @@ SELECT
     TRY_CAST(e.sqfootage AS DECIMAL(10,2)) AS total_sqft,
     TRY_CAST(e.siteeui AS DECIMAL(10,2)) AS avg_siteeui,
     CAST(p.portfolio AS NVARCHAR(255)) AS portfolio_name
-FROM espmfirsttest e
+FROM DetroitDataBase e
 INNER JOIN portfolios p
     ON e.espmid = p.espmid
 WHERE ISNULL(e.pmparentid, e.espmid) = e.espmid
