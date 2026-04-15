@@ -592,24 +592,8 @@ yearly_query = """
     ORDER BY [datayear]
 """
 
-# df_yearly = conn.query(yearly_query)
-# df_yearly = df_yearly.sort_values('datayear')
-
-# # Site EUI bar chart (rendered in first graph slot) from fixed eui_data
-# df_eui_bar = pd.DataFrame(df_yearly).rename(columns={"years": "datayear", "actual": "avg_siteeui"})
-# df_eui_bar["datayear"] = df_eui_bar["datayear"].astype(str)
-
-# df_eui_bar_melted = df_eui_bar.melt(
-#     id_vars=['datayear'],
-#     value_vars=['avg_siteeui', 'baseline', 'target'],
-#     var_name='series',
-#     value_name='eui'
-# ).dropna(subset=['eui'])
-# df_eui_bar_melted['series'] = df_eui_bar_melted['series'].replace({
-#     'avg_siteeui': 'Actual EUI',
-#     'baseline': 'Baseline EUI',
-#     'target': 'Target EUI'
-# })
+df_yearly = conn.query(yearly_query)
+df_yearly = df_yearly.sort_values('datayear')
 
 fig_eui_bar = px.bar(
     yearly_query,
