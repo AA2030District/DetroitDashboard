@@ -39,7 +39,6 @@ adapter = HTTPAdapter(
 session.mount("https://", adapter)
 session.mount("http://", adapter)
 st.title("Error Finder")
-
 conn = st.connection("sql", type="sql")
 
 
@@ -85,7 +84,7 @@ def findgaps(selection):
         energy_errordict={}
         water_errordict={}
         espmid = selection["espmid"].iloc[0]
-        datayear = datetime.now().year - 1
+        datayear = int(selection["datayear"].iloc[0])
         lastdayinyear=datetime(int(datayear),12,31)
         hasenergygaps = selection["hasenergygaps"].iloc[0]
         haswatergaps = selection["haswatergaps"].iloc[0]
@@ -378,6 +377,7 @@ with errors:
         filtered_df = df.iloc[[selected_row_index]]
         st.caption(
             f"Selected: {filtered_df['buildingname'].iloc[0]} "
+            f"- Issue Year: {filtered_df['datayear'].iloc[0]} "
             f"({selected_row_index + 1}/{len(df)})"
         )
         errordicts = findgaps(filtered_df)
