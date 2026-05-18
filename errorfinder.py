@@ -407,3 +407,9 @@ with errors:
     else:
         st.write("No Building Selected")
 
+st.divider()
+if st.button("Update Streamlit Cache"):
+    st.cache_data.clear()
+    st.cache_resource.clear()
+    st.rerun()
+

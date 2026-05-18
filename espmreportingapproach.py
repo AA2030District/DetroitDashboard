@@ -20,10 +20,11 @@ from requests.adapters import HTTPAdapter
 import os
 import time
 from urllib3.util.retry import Retry
+from pathlib import Path
 from dotenv import load_dotenv
 import os
 
-load_dotenv("secrets.env", override=True)
+load_dotenv(Path(__file__).resolve().parent / "secrets.env", override=True)
 user = os.environ.get("ENERGY_STAR_PORTFOLIO_MANAGER_USERNAME")
 pw = os.environ.get("ENERGY_STAR_PORTFOLIO_MANAGER_PASSWORD")
 retry_strategy = Retry(
@@ -699,8 +700,9 @@ try:
     for entry in dict_data['response']['links']['link']:
         idlist.append(entry['@id'])
     ## deletes all buildings from DB not in streamlit list 
-    query = f"DELETE FROM DetroitDataBase where espmid not in ({idlist})"
-    cursor.execute(query)
+    placeholders = ",".join("?" for _ in idlist)
+    query = f"DELETE FROM DetroitDataBase WHERE espmid NOT IN ({placeholders})"
+    cursor.execute(query, *idlist)
     connection.commit()
 
     
